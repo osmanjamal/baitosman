@@ -1,0 +1,28 @@
+{
+  "branch_selector": {
+    "title": "Select Branch",
+    "subtitle": "Please select the branch to view the menu",
+    "branches": {
+      "dahan": "Al Dahan",
+      "nakheel": "Al Nakheel",
+      "zait": "Al Zait"
+    }
+  },
+  "menu": {
+    "title": "Menu",
+    "add_to_cart": "Add to Order",
+    "empty_cart": "Your cart is empty",
+    "checkout": "Checkout"
+  },
+  "order": {
+    "title": "Order",
+    "customer_info": "Customer Information",
+    "name": "Name",
+    "phone": "Phone Number",
+    "items": "Items",
+    "total": "Total",
+    "submit": "Submit Order",
+    "success": "Order submitted successfully",
+    "order_number": "Order Number"
+  }
+}

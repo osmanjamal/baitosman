@@ -1,0 +1,42 @@
+{% schema %}
+{
+  "name": "Branch Selector",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Title",
+      "default": "Select Branch"
+    },
+    {
+      "type": "text",
+      "id": "subtitle",
+      "label": "Subtitle",
+      "default": "Please select the branch to view the menu"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Branch Selector"
+    }
+  ]
+}
+{% endschema %}
+
+<div class="branch-selector" id="branch-selector">
+  <h2>{{ section.settings.title | default: block.settings.title }}</h2>
+  <p>{{ section.settings.subtitle | default: block.settings.subtitle }}</p>
+
+  <div class="branch-buttons">
+    <button class="branch-button" data-branch-id="dahan" onclick="selectBranch('dahan')">
+      {{ 'branch_selector.branches.dahan' | t }}
+    </button>
+    <button class="branch-button" data-branch-id="nakheel" onclick="selectBranch('nakheel')">
+      {{ 'branch_selector.branches.nakheel' | t }}
+    </button>
+    <button class="branch-button" data-branch-id="zait" onclick="selectBranch('zait')">
+      {{ 'branch_selector.branches.zait' | t }}
+    </button>
+  </div>
+</div>

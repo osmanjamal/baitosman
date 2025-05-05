@@ -1,0 +1,52 @@
+.branch-selector {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: center;
+  font-family: var(--font-body-family);
+}
+
+.branch-selector h2 {
+  font-size: 24px;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.branch-selector p {
+  font-size: 16px;
+  margin-bottom: 20px;
+  color: #666;
+}
+
+.branch-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.branch-button {
+  padding: 15px 20px;
+  background-color: #4a4a4a;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.branch-button:hover {
+  background-color: #333;
+}
+
+@media (min-width: 768px) {
+  .branch-buttons {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .branch-button {
+    flex: 1;
+    max-width: 180px;
+  }
+}

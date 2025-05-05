@@ -1,0 +1,19 @@
+<!-- extensions/theme-extension/snippets/branch-selector.liquid -->
+<div class="branch-selector" id="branch-selector">
+  <h2>{{ "branch_selector.title" | t }}</h2>
+  <p>{{ "branch_selector.subtitle" | t }}</p>
+
+  <div class="branch-buttons">
+    {% for branch in branches %}
+      <button
+        class="branch-button"
+        data-branch-id="{{ branch.id }}"
+        onclick="selectBranch('{{ branch.id }}')">
+        {{ branch.name }}
+      </button>
+    {% endfor %}
+  </div>
+</div>
+
+<script src="{{ 'branch-selector.js' | asset_url }}" defer></script>
+<link rel="stylesheet" href="{{ 'branch-selector.css' | asset_url }}">
