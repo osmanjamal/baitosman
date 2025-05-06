@@ -14,6 +14,18 @@
       "id": "subtitle",
       "label": "Subtitle",
       "default": "Please select the branch to view the menu"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background Color",
+      "default": "#f7f7f7"
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "Button Color",
+      "default": "#4a4a4a"
     }
   ],
   "presets": [
@@ -24,19 +36,294 @@
 }
 {% endschema %}
 
-<div class="branch-selector" id="branch-selector">
-  <h2>{{ section.settings.title | default: block.settings.title }}</h2>
-  <p>{{ section.settings.subtitle | default: block.settings.subtitle }}</p>
+<div class="branch-selector" id="branch-selector"
+  style="background-color: {{ section.settings.background_color | default: block.settings.background_color | default: '#f7f7f7' }}">
 
-  <div class="branch-buttons">
-    <button class="branch-button" data-branch-id="dahan" onclick="selectBranch('dahan')">
-      {{ 'branch_selector.branches.dahan' | t }}
-    </button>
-    <button class="branch-button" data-branch-id="nakheel" onclick="selectBranch('nakheel')">
-      {{ 'branch_selector.branches.nakheel' | t }}
-    </button>
-    <button class="branch-button" data-branch-id="zait" onclick="selectBranch('zait')">
-      {{ 'branch_selector.branches.zait' | t }}
-    </button>
+  <h2>{{ section.settings.title | default: block.settings.title | t: 'branch_selector.title' }}</h2>
+  <p>{{ section.settings.subtitle | default: block.settings.subtitle | t: 'branch_selector.subtitle' }}</p>
+
+  <div class="branch-buttons" id="branch-buttons-container">
+    <div class="branch-loading">{{ 'branch_selector.loading' | t }}</div>
+  </div>
+
+  <div class="branch-error" id="branch-error" style="display: none;">
+    <p>{{ 'branch_selector.error' | t }}</p>
+    <button onclick="fetchBranches()" class="retry-button">{{ 'branch_selector.retry' | t }}</button>
   </div>
 </div>
+
+<style>
+.branch-selector {
+  max-width: 800px;
+  margin: 0 auto 40px;
+  padding: 30px;
+  text-align: center;
+  font-family: var(--font-body-family);
+  border-radius: 10px;
+}
+
+.branch-selector h2 {
+  font-size: 28px;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.branch-selector p {
+  font-size: 16px;
+  margin-bottom: 25px;
+  color: #666;
+}
+
+.branch-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+ margin-top: 20px;
+}
+
+.branch-button {
+  padding: 15px 20px;
+  background-color: {{ section.settings.button_color | default: block.settings.button_color | default: '#4a4a4a' }};
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.branch-button:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.branch-button .branch-info {
+  text-align: left;
+  flex: 1;
+}
+
+.branch-button .branch-name {
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.branch-button .branch-description {
+  font-size: 14px;
+  opacity: 0.8;
+  margin-top: 5px;
+}
+
+.branch-distance {
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 5px 10px;
+  border-radius: 20px;
+  margin-left: 10px;
+  font-size: 14px;
+}
+
+.branch-loading {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+.branch-error {
+  padding: 20px;
+  text-align: center;
+  color: #d82c0d;
+  background-color: rgba(216, 44, 13, 0.1);
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.retry-button {
+  background-color: #d82c0d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+@media only screen and (min-width: 768px) {
+  .branch-buttons {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .branch-button {
+    flex-basis: calc(50% - 15px);
+    max-width: calc(50% - 15px);
+  }
+}
+
+@media only screen and (min-width: 990px) {
+  .branch-button {
+    flex-basis: calc(33.33% - 20px);
+    max-width: calc(33.33% - 20px);
+  }
+}
+</style>
+
+<script>
+// الحصول على موقع المستخدم إذا كان متاحًا
+let userLocation = null;
+
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      userLocation = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
+      };
+      fetchBranches(); // جلب الفروع بعد الحصول على الموقع
+    },
+    (error) => {
+      console.log('خطأ في الحصول على الموقع:', error);
+      fetchBranches(); // جلب الفروع بدون معلومات الموقع
+    }
+  );
+} else {
+  fetchBranches(); // جلب الفروع إذا لم يكن تحديد الموقع متاحًا
+}
+
+// حساب المسافة بين نقطتين (بالكيلومتر) باستخدام صيغة هافرسين
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+
+  const R = 6371; // نصف قطر الأرض بالكيلومتر
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+          Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+// جلب الفروع من واجهة برمجة التطبيقات
+async function fetchBranches() {
+  const buttonsContainer = document.getElementById('branch-buttons-container');
+  const errorContainer = document.getElementById('branch-error');
+
+  // إظهار حالة التحميل
+  buttonsContainer.innerHTML = '<div class="branch-loading">{{ "branch_selector.loading" | t }}</div>';
+  errorContainer.style.display = 'none';
+
+  try {
+    // طلب الفروع من واجهة برمجة التطبيقات
+    const response = await fetch('/api/branches?activeOnly=true');
+
+    if (!response.ok) {
+      throw new Error(`خطأ في الاستجابة: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const branches = data.branches || [];
+
+    // إذا لم تكن هناك فروع، أظهر رسالة مناسبة
+    if (branches.length === 0) {
+      buttonsContainer.innerHTML = '<div>{{ "branch_selector.no_branches" | t }}</div>';
+      return;
+    }
+
+    // ترتيب الفروع حسب المسافة إذا كان موقع المستخدم متاحًا
+    if (userLocation) {
+      branches.forEach(branch => {
+        branch.distance = calculateDistance(
+          userLocation.latitude,
+          userLocation.longitude,
+          branch.latitude,
+          branch.longitude
+        );
+      });
+
+      branches.sort((a, b) => {
+        // ضع الفروع التي لها موقع في الأعلى، مرتبة حسب المسافة
+        if (a.distance === null && b.distance === null) return 0;
+        if (a.distance === null) return 1;
+        if (b.distance === null) return -1;
+        return a.distance - b.distance;
+      });
+    }
+
+    // عرض الفروع
+    buttonsContainer.innerHTML = '';
+
+    branches.forEach(branch => {
+      const branchElement = document.createElement('button');
+      branchElement.className = 'branch-button';
+      branchElement.setAttribute('data-branch-id', branch.id);
+      branchElement.onclick = function() { selectBranch(branch.id); };
+
+      let distanceHtml = '';
+      if (branch.distance !== null) {
+        distanceHtml = `<span class="branch-distance">${branch.distance.toFixed(1)} كم</span>`;
+      }
+
+      branchElement.innerHTML = `
+        <div class="branch-info">
+          <div class="branch-name">${branch.name}</div>
+          ${branch.description ? `<div class="branch-description">${branch.description}</div>` : ''}
+        </div>
+        ${distanceHtml}
+      `;
+
+      buttonsContainer.appendChild(branchElement);
+    });
+
+  } catch (error) {
+    console.error('خطأ في جلب الفروع:', error);
+    buttonsContainer.innerHTML = '';
+    errorContainer.style.display = 'block';
+  }
+}
+
+// اختيار فرع وتخزين المعرف الخاص به
+function selectBranch(branchId) {
+  // حفظ معرف الفرع في التخزين المحلي
+  localStorage.setItem('selectedBranchId', branchId);
+
+  // تحديث تحديد الواجهة
+  const buttons = document.querySelectorAll('.branch-button');
+  buttons.forEach(button => {
+    if (button.getAttribute('data-branch-id') === branchId) {
+      button.style.border = '2px solid #fff';
+      button.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.5)';
+    } else {
+      button.style.border = 'none';
+      button.style.boxShadow = 'none';
+    }
+  });
+
+  // الانتقال إلى صفحة القائمة بعد فترة قصيرة
+  setTimeout(() => {
+    window.location.href = '/menu?branchId=' + branchId;
+  }, 500);
+}
+
+// تطبيق التحديد إذا تم بالفعل اختيار فرع
+document.addEventListener('DOMContentLoaded', function() {
+  const selectedBranchId = localStorage.getItem('selectedBranchId');
+
+  if (selectedBranchId) {
+    // تحديث واجهة الأزرار بعد تحميل الفروع
+    setTimeout(() => {
+      const buttons = document.querySelectorAll('.branch-button');
+      buttons.forEach(button => {
+        if (button.getAttribute('data-branch-id') === selectedBranchId) {
+          button.style.border = '2px solid #fff';
+          button.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.5)';
+        }
+      });
+    }, 1000);
+  }
+});
+</script>

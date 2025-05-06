@@ -1,15 +1,28 @@
 import { PrismaClient } from "@prisma/client";
 
-// Definir un ámbito global para PrismaClient
+// تعريف نطاق عالمي للـ PrismaClient
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-// Crear instancia de PrismaClient sin intentar migración
-export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-  });
+// إعدادات خيارات Prisma
+const prismaOptions = {
+  log: process.env.NODE_ENV === "development"
+    ? ['error', 'warn']
+    : ['error'],
+};
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+// إنشاء مثيل واحد من PrismaClient وإعادة استخدامه عبر طلبات متعددة
+let prisma: PrismaClient;
 
+// منع إنشاء مثيلات متعددة في بيئة التطوير
+if (process.env.NODE_ENV === 'production') {
+  prisma = new PrismaClient(prismaOptions);
+} else {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = new PrismaClient(prismaOptions);
+  }
+  prisma = globalForPrisma.prisma;
+}
+
+// تصدير prisma للاستخدام في باقي أجزاء التطبيق
+export { prisma };
 export default prisma;

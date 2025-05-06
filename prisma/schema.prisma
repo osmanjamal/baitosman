@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "./node_modules/.prisma/client"
 }
 
 datasource db {
@@ -9,52 +8,60 @@ datasource db {
 }
 
 model Branch {
-  id          String   @id @default(uuid())
+  id          String     @id @default(uuid())
   name        String
   description String?
   address     String?
-  deviceId    String   @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  latitude    Float?
+  longitude   Float?
+  deviceId    String     @unique
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   orders      Order[]
   menuItems   MenuItem[]
 }
 
 model MenuItem {
-  id          String   @id @default(uuid())
+  id          String     @id @default(uuid())
   name        String
   description String?
   price       Float
   imageUrl    String?
-  category    String?
-  isAvailable Boolean  @default(true)
+  category    String     @default("عام")
+  isAvailable Boolean    @default(true)
   branchId    String
-  branch      Branch   @relation(fields: [branchId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  branch      Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   orderItems  OrderItem[]
 }
 
 model Order {
-  id          String      @id @default(uuid())
-  orderNumber String      @unique
-  status      OrderStatus @default(PENDING)
-  branchId    String
-  branch      Branch      @relation(fields: [branchId], references: [id])
-  customerName String?
-  customerPhone String?
-  totalAmount Float
-  orderItems  OrderItem[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id             String      @id @default(uuid())
+  orderNumber    String      @unique
+  status         OrderStatus @default(PENDING)
+  branchId       String
+  branch         Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  customerName   String?
+  customerPhone  String?
+  customerEmail  String?
+  totalAmount    Float
+  paymentMethod  String?
+  orderItems     OrderItem[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  deliveryMethod String?
+  deliveryAddress String?
+  notes          String?
 }
 
 model OrderItem {
   id          String   @id @default(uuid())
   orderId     String
-  order       Order    @relation(fields: [orderId], references: [id])
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItemId  String
-  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
   quantity    Int
   price       Float
   note        String?
@@ -63,14 +70,35 @@ model OrderItem {
 }
 
 model Session {
-  id          String    @id
-  shop        String
-  state       String
-  isOnline    Boolean   @default(false)
-  scope       String?
-  expires     DateTime?
-  accessToken String
-  userId      BigInt?
+  id             String   @id
+  shop           String
+  state          String?
+  isOnline       Boolean
+  scope          String?
+  expires        DateTime?
+  accessToken    String
+  userId         String?
+  firstName      String?  // <-- أضفهم هنا
+  lastName       String?
+  email          String?
+  accountOwner   Boolean?
+  locale         String?
+  collaborator   Boolean?
+  emailVerified  Boolean?
+}
+
+
+model AppSettings {
+  id                    String  @id @default("settings")
+  defaultBranchId       String?
+  orderNotificationEmail String?
+  enableOrderSound      Boolean @default(true)
+  minimumOrderAmount    Float   @default(0)
+  currency              String  @default("USD")
+  companyName           String?
+  companyLogo           String?
+  contactPhone          String?
+  contactEmail          String?
 }
 
 enum OrderStatus {

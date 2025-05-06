@@ -3,7 +3,7 @@
 client_id = "4f6112b606636924cd7fcf9bb4bee40a"
 name = "baitosman"
 handle = "baitosman"
-application_url = "https://dump-criminal-tremendous-bother.trycloudflare.com"
+application_url = "https://brian-statistics-violent-protocol.trycloudflare.com"
 embedded = true
 
 [build]
@@ -23,13 +23,13 @@ api_version = "2025-04"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+scopes = "write_products,read_products,write_orders,read_orders,write_customers,read_customers"
 
 [auth]
 redirect_urls = [
-  "https://dump-criminal-tremendous-bother.trycloudflare.com/auth/callback",
-  "https://dump-criminal-tremendous-bother.trycloudflare.com/auth/shopify/callback",
-  "https://dump-criminal-tremendous-bother.trycloudflare.com/api/auth/callback"
+  "https://brian-statistics-violent-protocol.trycloudflare.com/auth/callback",
+  "https://brian-statistics-violent-protocol.trycloudflare.com/auth/shopify/callback",
+  "https://brian-statistics-violent-protocol.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
