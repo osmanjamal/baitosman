@@ -3,81 +3,92 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { prisma } from "~/db.server";
 import { requireAuth } from "~/shopify.server";
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  try {
-    await requireAuth(request);
 
-    const url = new URL(request.url);
-    const branchId = url.searchParams.get("branchId");
-    const category = url.searchParams.get("category");
-    const includeUnavailable = url.searchParams.get("includeUnavailable") === "true";
 
-    if (!branchId) {
-      return json({ error: "Branch ID is required" }, { status: 400 });
-    }
+// app/routes/api/menu.ts - تحديث للسماح بالتصفية والبحث
+export async function loader({ request }) {
+  await requireAuth(request);
 
-    // التحقق من وجود الفرع
-    const branch = await prisma.branch.findUnique({
-      where: { id: branchId }
-    });
+  const url = new URL(request.url);
+  const branchId = url.searchParams.get("branchId");
+  const category = url.searchParams.get("category");
+  const search = url.searchParams.get("search");
+  const includeUnavailable = url.searchParams.get("includeUnavailable") === "true";
 
-    if (!branch) {
-      return json({ error: "Branch not found" }, { status: 404 });
-    }
-
-    // بناء استعلام قاعدة البيانات
-    const whereClause: any = {
-      branchId,
-    };
-
-    if (!includeUnavailable) {
-      whereClause.isAvailable = true;
-    }
-
-    if (category) {
-      whereClause.category = category;
-    }
-
-    // الحصول على عناصر القائمة للفرع المحدد
-    const menuItems = await prisma.menuItem.findMany({
-      where: whereClause,
-      orderBy: [
-        { category: 'asc' },
-        { name: 'asc' }
-      ]
-    });
-
-    // تجميع العناصر حسب الفئة
-    const categorizedMenu = menuItems.reduce((acc, item) => {
-      const category = item.category || 'عام';
-
-      if (!acc[category]) {
-        acc[category] = [];
-      }
-
-      acc[category].push(item);
-      return acc;
-    }, {} as Record<string, typeof menuItems>);
-
-    // إرجاع جميع الفئات المتاحة أيضًا
-    const allCategories = await prisma.menuItem.groupBy({
-      by: ['category'],
-      where: { branchId },
-      _count: true
-    });
-
-    return json({
-      menu: categorizedMenu,
-      categories: allCategories.map(cat => ({
-        name: cat.category || 'عام',
-        count: cat._count
-      }))
-    });
-  } catch (error) {
-    console.error("Error in menu API:", error);
-    return json({ error: "Failed to fetch menu items" }, { status: 500 });
+  if (!branchId) {
+    return json({ error: "Branch ID is required" }, { status: 400 });
   }
+
+  // التحقق من وجود الفرع
+  const branch = await prisma.branch.findUnique({
+    where: { id: branchId }
+  });
+
+  if (!branch) {
+    return json({ error: "Branch not found" }, { status: 404 });
+  }
+
+  // بناء استعلام البحث والتصفية
+  let whereClause = {
+    branchId
+  };
+
+  if (!includeUnavailable) {
+    whereClause.isAvailable = true;
+  }
+
+  if (category) {
+    whereClause.category = category;
+  }
+
+  if (search) {
+    whereClause = {
+      ...whereClause,
+      OR: [
+        { name: { contains: search } },
+        { description: { contains: search } }
+      ]
+    };
+  }
+
+  // الحصول على عناصر القائمة المصفاة
+  const menuItems = await prisma.menuItem.findMany({
+    where: whereClause,
+    orderBy: [
+      { category: 'asc' },
+      { name: 'asc' }
+    ]
+  });
+
+  // تنظيم العناصر حسب الفئة
+  const categorizedMenu = menuItems.reduce((acc, item) => {
+    const category = item.category || 'عام';
+
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+
+    acc[category].push(item);
+    return acc;
+  }, {});
+
+  // الحصول على جميع الفئات المتاحة
+  const allCategories = await prisma.menuItem.groupBy({
+    by: ['category'],
+    where: { branchId },
+    _count: true
+  });
+
+  return json({
+    menu: categorizedMenu,
+    categories: allCategories.map(cat => ({
+      name: cat.category || 'عام',
+      count: cat._count
+    }))
+  });
 }
+
+
 
 export async function action({ request }: ActionFunctionArgs) {
   try {

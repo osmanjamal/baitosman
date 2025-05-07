@@ -3,49 +3,62 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { prisma } from "~/db.server";
 import { requireAuth } from "~/shopify.server";
 
-export async function loader({ request }: LoaderFunctionArgs) {
+// app/routes/api/orders.ts - تحديث للسماح بالتصفية والبحث
+export async function loader({ request }) {
+  await requireAuth(request);
+
+  const url = new URL(request.url);
+  const branchId = url.searchParams.get("branchId");
+  const status = url.searchParams.get("status");
+  const startDate = url.searchParams.get("startDate");
+  const endDate = url.searchParams.get("endDate");
+  const search = url.searchParams.get("search");
+  const orderNumber = url.searchParams.get("orderNumber");
+  const limit = url.searchParams.get("limit") ? parseInt(url.searchParams.get("limit")) : 50;
+
+  // بناء شرط البحث المتقدم
+  let whereClause = {};
+
+  if (branchId) {
+    whereClause.branchId = branchId;
+  }
+
+  if (status) {
+    whereClause.status = status;
+  }
+
+  if (orderNumber) {
+    whereClause.orderNumber = orderNumber;
+  }
+
+  if (search) {
+    whereClause = {
+      ...whereClause,
+      OR: [
+        { orderNumber: { contains: search } },
+        { customerName: { contains: search } },
+        { customerPhone: { contains: search } }
+      ]
+    };
+  }
+
+  if (startDate && endDate) {
+    whereClause.createdAt = {
+      gte: new Date(startDate),
+      lte: new Date(endDate)
+    };
+  } else if (startDate) {
+    whereClause.createdAt = {
+      gte: new Date(startDate)
+    };
+  } else if (endDate) {
+    whereClause.createdAt = {
+      lte: new Date(endDate)
+    };
+  }
+
   try {
-    await requireAuth(request);
-
-    const url = new URL(request.url);
-    const branchId = url.searchParams.get("branchId");
-    const status = url.searchParams.get("status");
-    const startDate = url.searchParams.get("startDate");
-    const endDate = url.searchParams.get("endDate");
-    const orderNumber = url.searchParams.get("orderNumber");
-    const limit = url.searchParams.get("limit") ? parseInt(url.searchParams.get("limit") as string) : undefined;
-
-    // فلترة متقدمة
-    let whereClause: any = {};
-
-    if (branchId) {
-      whereClause.branchId = branchId;
-    }
-
-    if (status) {
-      whereClause.status = status;
-    }
-
-    if (orderNumber) {
-      whereClause.orderNumber = orderNumber;
-    }
-
-    if (startDate && endDate) {
-      whereClause.createdAt = {
-        gte: new Date(startDate),
-        lte: new Date(endDate)
-      };
-    } else if (startDate) {
-      whereClause.createdAt = {
-        gte: new Date(startDate)
-      };
-    } else if (endDate) {
-      whereClause.createdAt = {
-        lte: new Date(endDate)
-      };
-    }
-
-    // جلب الطلبات
+    // جلب الطلبات مع بيانات الفرع وعناصر الطلب
     const orders = await prisma.order.findMany({
       where: whereClause,
       include: {
@@ -96,7 +109,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
     });
   } catch (error) {
-    console.error("Error in orders API:", error);
+    console.error("Error fetching orders:", error);
     return json({ error: "Failed to fetch orders" }, { status: 500 });
   }
 }

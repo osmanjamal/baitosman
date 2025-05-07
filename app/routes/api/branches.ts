@@ -62,6 +62,70 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 }
 
+// app/routes/api/branches.ts - تحديث للسماح بالتصفية والبحث
+export async function loader({ request }) {
+  await requireAuth(request);
+
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id");
+  const activeOnly = url.searchParams.get("activeOnly") !== "false"; // افتراضيًا، عودة الفروع النشطة فقط
+  const search = url.searchParams.get("search");
+
+  if (id) {
+    const branch = await prisma.branch.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            orders: true,
+            menuItems: true
+          }
+        }
+      }
+    });
+
+    if (!branch) {
+      return json({ error: "Branch not found" }, { status: 404 });
+    }
+
+    return json({ branch });
+  }
+
+  // بناء استعلام البحث والتصفية
+  let whereClause = {};
+
+  if (activeOnly) {
+    whereClause = { ...whereClause, isActive: true };
+  }
+
+  if (search) {
+    whereClause = {
+      ...whereClause,
+      OR: [
+        { name: { contains: search } },
+        { description: { contains: search } },
+        { address: { contains: search } }
+      ]
+    };
+  }
+
+  const branches = await prisma.branch.findMany({
+    where: whereClause,
+    include: {
+      _count: {
+        select: {
+          orders: true,
+          menuItems: true
+        }
+      }
+    },
+    orderBy: { name: 'asc' }
+  });
+
+  return json({ branches });
+}
+
+
 export async function action({ request }: ActionFunctionArgs) {
   try {
     await requireAuth(request);

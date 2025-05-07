@@ -1,25 +1,27 @@
+// app/routes/app/orders/[id].tsx
+import { useState } from "react";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useActionData, Form } from "@remix-run/react";
+import { useLoaderData, useActionData, Form, useSubmit } from "@remix-run/react";
 import {
   Page,
   Layout,
   Card,
-  Banner,
-  LegacyStack,
-  Text,
-  Button,
-  ButtonGroup,
-  DataTable,
-  Select,
   Badge,
-  Divider
+  Button,
+  Select,
+  Banner,
+  Text,
+  DataTable,
+  Stack,
+  TextContainer,
+  ButtonGroup
 } from "@shopify/polaris";
-import { prisma } from "~/db.server";
-import { requireAuth } from "~/shopify.server";
-import { updateOrderStatus } from "~/models/order.server";
+import { TitleBar } from "@shopify/app-bridge-react";
+import { authenticate } from "../../../shopify.server";
+import { prisma } from "../../../db.server";
 
 export async function loader({ request, params }) {
-  await requireAuth(request);
+  await authenticate.admin(request);
 
   const { id } = params;
 
@@ -27,6 +29,7 @@ export async function loader({ request, params }) {
     return redirect("/app/orders");
   }
 
+  // جلب تفاصيل الطلب
   const order = await prisma.order.findUnique({
     where: { id },
     include: {
@@ -47,60 +50,105 @@ export async function loader({ request, params }) {
 }
 
 export async function action({ request, params }) {
-  await requireAuth(request);
+  await authenticate.admin(request);
 
   const { id } = params;
   const formData = await request.formData();
+  const status = formData.get("status");
 
-  const status = formData.get("status") as any;
+  // التحقق من صحة الحالة
+  const validStatuses = ["PENDING", "PREPARING", "READY", "COMPLETED", "CANCELLED"];
+  if (!validStatuses.includes(status)) {
+    return json({
+      errors: {
+        status: "حالة غير صالحة"
+      }
+    }, { status: 400 });
+  }
 
   try {
-    const order = await updateOrderStatus(id, status);
-    return json({ success: true, order });
+    // تحديث حالة الطلب
+    const updatedOrder = await prisma.order.update({
+      where: { id },
+      data: { status }
+    });
+
+    return json({
+      success: true,
+      message: "تم تحديث حالة الطلب بنجاح",
+      order: updatedOrder
+    });
   } catch (error) {
-    return json({ errors: { form: "Failed to update order status" } }, { status: 500 });
+    console.error("Error updating order status:", error);
+    return json({
+      errors: {
+        form: "حدث خطأ أثناء تحديث حالة الطلب"
+      }
+    }, { status: 500 });
   }
 }
 
-export default function OrderDetail() {
+export default function OrderDetails() {
   const { order } = useLoaderData();
   const actionData = useActionData();
+  const submit = useSubmit();
 
+  const [status, setStatus] = useState(order.status);
+
+  // الحصول على شارة الحالة
   const getStatusBadge = (status) => {
-    const statusMap = {
-      PENDING: { content: "Pending", status: "warning" },
-      PREPARING: { content: "Preparing", status: "info" },
-      READY: { content: "Ready", status: "success" },
-      COMPLETED: { content: "Completed", status: "success" },
-      CANCELLED: { content: "Cancelled", status: "critical" }
+    const statusConfig = {
+      PENDING: { content: "معلق", status: "warning" },
+      PREPARING: { content: "قيد التحضير", status: "info" },
+      READY: { content: "جاهز", status: "success" },
+      COMPLETED: { content: "مكتمل", status: "success" },
+      CANCELLED: { content: "ملغي", status: "critical" }
     };
 
-    const badgeInfo = statusMap[status] || { content: status, status: "default" };
+    const config = statusConfig[status] || { content: status, status: "default" };
 
-    return <Badge status={badgeInfo.status}>{badgeInfo.content}</Badge>;
+    return <Badge status={config.status}>{config.content}</Badge>;
   };
 
+  // تحضير خيارات حالة الطلب
   const statusOptions = [
-    { label: "Pending", value: "PENDING" },
-    { label: "Preparing", value: "PREPARING" },
-    { label: "Ready", value: "READY" },
-    { label: "Completed", value: "COMPLETED" },
-    { label: "Cancelled", value: "CANCELLED" }
+    { label: "معلق", value: "PENDING" },
+    { label: "قيد التحضير", value: "PREPARING" },
+    { label: "جاهز", value: "READY" },
+    { label: "مكتمل", value: "COMPLETED" },
+    { label: "ملغي", value: "CANCELLED" }
   ];
 
+  // تحضير صفوف جدول عناصر الطلب
   const orderItemRows = order.orderItems.map(item => [
     item.menuItem.name,
+    item.menuItem.category || "عام",
     item.quantity,
-    `$${item.price.toFixed(2)}`,
-    `$${(item.price * item.quantity).toFixed(2)}`,
+    `${item.price.toFixed(2)} ريال`,
+    `${(item.quantity * item.price).toFixed(2)} ريال`,
     item.note || "-"
   ]);
 
+  // مجموع قيم العناصر
+  const totals = ["", "", "", "", `${order.totalAmount.toFixed(2)} ريال`, ""];
+
+  // معالجة تحديث حالة الطلب
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    const formData = new FormData();
+    formData.append("status", status);
+
+    submit(formData, { method: "post" });
+  };
+
   return (
     <Page
-      title={`Order #${order.orderNumber}`}
-      backAction={{ content: "Orders", url: "/app/orders" }}
+      title={`تفاصيل الطلب #${order.orderNumber}`}
+      backAction={{ content: "الطلبات", url: "/app/orders" }}
     >
+      <TitleBar title={`تفاصيل الطلب #${order.orderNumber}`} />
+
       {actionData?.errors?.form && (
         <Banner status="critical">
           <p>{actionData.errors.form}</p>
@@ -109,100 +157,84 @@ export default function OrderDetail() {
 
       {actionData?.success && (
         <Banner status="success" onDismiss={() => {}}>
-          <p>Order status updated successfully.</p>
+          <p>{actionData.message}</p>
         </Banner>
       )}
 
       <Layout>
         <Layout.Section>
-          <Card title="Order Details">
+          <Card title="معلومات الطلب">
             <Card.Section>
-              <LegacyStack distribution="equalSpacing">
-                <LegacyStack.Item>
-                  <Text variant="bodyMd" as="p">
-                    <strong>Date:</strong> {new Date(order.createdAt).toLocaleString()}
-                  </Text>
-                </LegacyStack.Item>
-                <LegacyStack.Item>
-                  <Text variant="bodyMd" as="p">
-                    <strong>Status:</strong> {getStatusBadge(order.status)}
-                  </Text>
-                </LegacyStack.Item>
-              </LegacyStack>
+              <Stack distribution="equalSpacing">
+                <Stack.Item>
+                  <TextContainer>
+                    <Text variant="headingMd">رقم الطلب: {order.orderNumber}</Text>
+                    <Text>التاريخ: {new Date(order.createdAt).toLocaleString('ar-SA')}</Text>
+                    <Text>الفرع: {order.branch.name}</Text>
+                  </TextContainer>
+                </Stack.Item>
+                <Stack.Item>
+                  <TextContainer>
+                    <Text>الحالة: {getStatusBadge(order.status)}</Text>
+                    <Text>الإجمالي: {order.totalAmount.toFixed(2)} ريال</Text>
+                  </TextContainer>
+                </Stack.Item>
+              </Stack>
             </Card.Section>
 
-            <Card.Section>
-              <LegacyStack vertical spacing="tight">
-                <Text variant="bodyMd" as="p">
-                  <strong>Branch:</strong> {order.branch.name}
-                </Text>
-                <Text variant="bodyMd" as="p">
-                  <strong>Customer:</strong> {order.customerName || "-"}
-                </Text>
-                <Text variant="bodyMd" as="p">
-                  <strong>Phone:</strong> {order.customerPhone || "-"}
-                </Text>
-              </LegacyStack>
+            <Card.Section title="معلومات العميل">
+              <TextContainer>
+                <Text>الاسم: {order.customerName || "غير محدد"}</Text>
+                <Text>رقم الهاتف: {order.customerPhone || "غير محدد"}</Text>
+              </TextContainer>
             </Card.Section>
 
-            <Card.Section title="Items">
+            <Card.Section title="عناصر الطلب">
               <DataTable
-                columnContentTypes={[
-                  "text",
-                  "numeric",
-                  "numeric",
-                  "numeric",
-                  "text"
-                ]}
-                headings={[
-                  "Item",
-                  "Quantity",
-                  "Price",
-                  "Total",
-                  "Notes"
-                ]}
+                columnContentTypes={["text", "text", "numeric", "numeric", "numeric", "text"]}
+                headings={["العنصر", "الفئة", "الكمية", "السعر", "الإجمالي", "ملاحظات"]}
                 rows={orderItemRows}
-                totals={["", "", "", `$${order.totalAmount.toFixed(2)}`, ""]}
+                totals={totals}
               />
             </Card.Section>
           </Card>
         </Layout.Section>
 
         <Layout.Section secondary>
-          <Card title="Update Status">
+          <Card title="تحديث حالة الطلب">
             <Card.Section>
-              <Form method="post">
-                <LegacyStack vertical spacing="tight">
+              <Form method="post" onSubmit={handleSubmit}>
+                <Stack vertical>
                   <Select
-                    label="Order Status"
+                    label="حالة الطلب"
                     options={statusOptions}
-                    name="status"
-                    value={order.status}
+                    value={status}
+                    onChange={setStatus}
+                    error={actionData?.errors?.status}
                   />
-                  <Button primary submit>Update Status</Button>
-                </LegacyStack>
+                  <Button primary submit>تحديث الحالة</Button>
+                </Stack>
               </Form>
             </Card.Section>
           </Card>
 
-          <div style={{ marginTop: "1rem" }}>
-            <Card title="Actions">
+          <div style={{ marginTop: '1rem' }}>
+            <Card title="إجراءات سريعة">
               <Card.Section>
                 <ButtonGroup fullWidth>
                   <Button
-                    variant="primary"
-                    url={`/app/orders/${order.id}/print`}
+                    onClick={() => window.print()}
                   >
-                    Print Order
+                    طباعة الطلب
                   </Button>
 
-                  <Button
-                    variant="primary"
-                    url={`mailto:${order.customerEmail || ''}`}
-                    disabled={!order.customerEmail}
-                  >
-                    Contact Customer
-                  </Button>
+                  {order.customerPhone && (
+                    <Button
+                      url={`tel:${order.customerPhone}`}
+                    >
+                      اتصال بالعميل
+                    </Button>
+                  )}
                 </ButtonGroup>
               </Card.Section>
             </Card>

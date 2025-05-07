@@ -88,6 +88,7 @@ model Session {
 }
 
 
+
 model AppSettings {
   id                    String  @id @default("settings")
   defaultBranchId       String?
