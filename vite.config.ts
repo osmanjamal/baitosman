@@ -3,23 +3,22 @@ import { installGlobals } from "@remix-run/node";
 import { defineConfig, type UserConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
+// تثبيت المتغيرات العالمية الخاصة بـ Remix
 installGlobals({ nativeFetch: true });
 
-// Related: https://github.com/remix-run/remix/issues/2835#issuecomment-1144102176
-// Replace the HOST env var with SHOPIFY_APP_URL so that it doesn't break the remix server. The CLI will eventually
-// stop passing in HOST, so we can remove this workaround after the next major release.
+// معالجة متغيرات البيئة المتعلقة بـ Shopify
 if (
   process.env.HOST &&
-  (!process.env.SHOPIFY_APP_URL ||
-    process.env.SHOPIFY_APP_URL === process.env.HOST)
+  (!process.env.SHOPIFY_APP_URL || process.env.SHOPIFY_APP_URL === process.env.HOST)
 ) {
   process.env.SHOPIFY_APP_URL = process.env.HOST;
   delete process.env.HOST;
 }
 
-const host = new URL(process.env.SHOPIFY_APP_URL || "http://localhost")
-  .hostname;
+// استخراج اسم المضيف من المتغير SHOPIFY_APP_URL
+const host = new URL(process.env.SHOPIFY_APP_URL || "http://localhost").hostname;
 
+// تكوين HMR (Hot Module Replacement) بناءً على المضيف
 let hmrConfig;
 if (host === "localhost") {
   hmrConfig = {
@@ -37,22 +36,22 @@ if (host === "localhost") {
   };
 }
 
+// تكوين Vite
 export default defineConfig({
   server: {
-    allowedHosts: [host],
+    allowedHosts: [host], // تحديد المضيف المسموح به
     cors: {
       preflightContinue: true,
     },
     port: Number(process.env.PORT || 3000),
-    hmr: hmrConfig,
+    hmr: hmrConfig, // تكوين HMR بناءً على المضيف
     fs: {
-      // See https://vitejs.dev/config/server-options.html#server-fs-allow for more information
-      allow: ["app", "node_modules"],
+      allow: ["app", "node_modules"], // السماح باستخدام المجلدات الضرورية
     },
   },
   plugins: [
     remix({
-      ignoredRouteFiles: ["**/.*"],
+      ignoredRouteFiles: ["**/.*"], // تجاهل الملفات المخفية
       future: {
         v3_fetcherPersist: true,
         v3_relativeSplatPath: true,
@@ -62,12 +61,12 @@ export default defineConfig({
         v3_routeConfig: true,
       },
     }),
-    tsconfigPaths(),
+    tsconfigPaths(), // تفعيل دعم المسارات من ملف tsconfig
   ],
   build: {
-    assetsInlineLimit: 0,
+    assetsInlineLimit: 0, // لا تقم بتضمين الأصول في الشيفرة المدمجة
   },
   optimizeDeps: {
-    include: ["@shopify/app-bridge-react", "@shopify/polaris"],
+    include: ["@shopify/app-bridge-react", "@shopify/polaris"], // تحسين التبعيات
   },
 }) satisfies UserConfig;

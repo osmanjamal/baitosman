@@ -1,10 +1,10 @@
 import "@shopify/shopify-app-remix/adapters/node";
 import {
-  ApiVersion,
   AppDistribution,
   shopifyApp,
   LATEST_API_VERSION,
 } from "@shopify/shopify-app-remix/server";
+
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import { prisma } from "./db.server";
 
@@ -68,7 +68,7 @@ const shopify = shopifyApp({
   skipMigration: true,
   hooks: {
     afterAuth: async (context) => {
-      const { session, admin } = context;
+      const { session } = context;
       if (!session?.id) return;
 
       // قد نحتاج إلى تنفيذ أي عمليات إضافية بعد المصادقة
@@ -95,13 +95,14 @@ export const sessionStorage = shopify.sessionStorage;
 // دالة محسنة للتحقق من صحة المستخدم مع معالجة الاستثناءات
 export async function requireAuth(request, options = {}) {
   try {
-    const { admin, session } = await authenticate.admin(request, options);
-    return { admin, session };
+    const { session } = await authenticate.admin(request, options);
+    return { session };
   } catch (error) {
     console.error("Authentication error:", error);
     throw await login(request, options);
   }
 }
+
 
 // وظائف إضافية للتعامل مع نماذج التطبيق
 export async function getAllBranches() {

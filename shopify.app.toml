@@ -3,7 +3,7 @@
 client_id = "4f6112b606636924cd7fcf9bb4bee40a"
 name = "baitosman"
 handle = "baitosman"
-application_url = "https://emacs-unsigned-consciousness-texts.trycloudflare.com"
+application_url = "https://shorter-keeps-medicine-lanes.trycloudflare.com"
 embedded = true
 
 [build]
@@ -27,9 +27,9 @@ scopes = "write_products,read_products,write_orders,read_orders,write_customers,
 
 [auth]
 redirect_urls = [
-  "https://emacs-unsigned-consciousness-texts.trycloudflare.com/auth/callback",
-  "https://emacs-unsigned-consciousness-texts.trycloudflare.com/auth/shopify/callback",
-  "https://emacs-unsigned-consciousness-texts.trycloudflare.com/api/auth/callback"
+  "https://shorter-keeps-medicine-lanes.trycloudflare.com/auth/callback",
+  "https://shorter-keeps-medicine-lanes.trycloudflare.com/auth/shopify/callback",
+  "https://shorter-keeps-medicine-lanes.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

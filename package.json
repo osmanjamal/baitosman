@@ -66,11 +66,14 @@
     "@types/node": "^22.2.0",
     "@types/react": "^18.2.31",
     "@types/react-dom": "^18.2.14",
+    "@typescript-eslint/eslint-plugin": "^8.32.0",
+    "@typescript-eslint/parser": "^8.32.0",
     "cross-env": "^7.0.3",
-    "eslint": "^8.42.0",
+    "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-import": "^2.31.0",
     "prettier": "^3.2.4",
-    "typescript": "^5.8.3",
+    "typescript": "5.1",
     "vite": "^6.2.2"
   },
   "workspaces": [
